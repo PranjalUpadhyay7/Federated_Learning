@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 # --- GLOBAL DATA CONFIGURATION (Source of Truth) ---
 # X dimension (number of features per time step)
-NUM_FEATURES = 30  
+NUM_FEATURES = 26  
 # Y dimension (classes per classification task)
 # Example: [2, 4] -> Task 1: Binary (2 classes); Task 2: 4-way classification.
 TARGET_CONFIG = [5] 
@@ -16,7 +16,7 @@ TARGET_CONFIG = [5]
 # Derived Constants
 NUM_TARGETS = len(TARGET_CONFIG)
 SEQ_LEN = 10       
-DATA_DIR = "real_data"
+DATA_DIR = "real_data_v2"
 NUM_USERS = 100 
 
 class TimeSeriesDataset(Dataset):

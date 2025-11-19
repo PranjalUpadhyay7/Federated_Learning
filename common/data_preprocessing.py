@@ -79,8 +79,8 @@ def split_csv_per_client(input_filepath, output_folder, features_to_keep=None):
 
 if __name__ == "__main__":
     # Configuration
-    INPUT_FILE = "final_dataset_halfhour_v2.csv"
-    OUTPUT_DIR = "real_data"
+    INPUT_FILE = "new.csv"
+    OUTPUT_DIR = "real_data_v2"
     
     # LIST OF FEATURES TO KEEP
     # Set to None to keep ALL columns by default.
@@ -88,15 +88,12 @@ if __name__ == "__main__":
     FEATURES = None 
     
     # Example of specific selection (Uncomment to use):
-    FEATURES = cols = [
+    features = [
     "app_event_count",
     "unique_apps_count",
     "app_usage_entropy",
-    "app_event_var_2h",
     "music_play_count",
-    "music_play_mean_2h",
     "headset_plug_count",
-    "headset_plug_var_2h",
     "notif_posted_count",
     "notif_unique_packages",
     "notif_entropy",
@@ -110,18 +107,18 @@ if __name__ == "__main__":
     "screen_on_count",
     "touch_count",
     "user_present_count",
-    "day_hour",
-    "is_daytime",
-    "day_night_ratio",
-    "app_event_count_rolling_std_2h",
-    "app_event_count_rolling_mean_2h",
-    "music_play_count_rolling_std_2h",
-    "music_play_count_rolling_mean_2h",
-    "headset_plug_count_rolling_std_2h",
-    "headset_plug_count_rolling_mean_2h",
+    "motion_invehicle_count",
+    "motion_onbicycle_count",
+    "motion_onfoot_count",
+    "motion_still_count",
+    "motion_unknown_count",
+    "motion_walking_count",
+    "motion_tilting_count",
+    "step_count",
     "A6a",
 ]
 
+
     
     # Run function
-    split_csv_per_client(INPUT_FILE, OUTPUT_DIR, features_to_keep=FEATURES)
+    split_csv_per_client(INPUT_FILE, OUTPUT_DIR, features_to_keep=features)
