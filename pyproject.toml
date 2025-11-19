@@ -1,7 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "fed-project"
-version = "0.1.0"
-description = "Add your description here"
+name = "fed-project" # Changed from 'time-series-fl' to match your local name
+version = "1.0.0"
+description = "Federated Learning with Time Series LSTM"
 readme = "README.md"
-requires-python = ">=3.7"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "flwr[simulation]>=1.23.0",
+    "torch",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+]
+
+# --- HATCHLING BUILD CONFIGURATION (New Section) ---
+[tool.hatch.build.targets.wheel]
+# Explicitly list all subdirectories that contain Python code
+packages = ["centralized", "common", "federated"]
+
+
+[tool.flwr.app]
+publisher = "user"
+
+[tool.flwr.app.components]
+serverapp = "federated.server:app"
+clientapp = "federated.client:app"
+
+# -----------------------------------------------
+# --- GLOBAL RUN CONFIGURATION (FL Hyperparameters)
+# -----------------------------------------------
+[tool.flwr.app.options]
+# 1. COMMUNICATION ROUNDS (Server-side epochs)
+num-server-rounds = 5 
+# 2. CLIENT SAMPLING RATE (Resource/Participation control)
+fraction-fit = 0.5 
+# 3. CLIENT LOCAL TRAINING EPOCHS (Local work intensity)
+num-local-epochs = 3 
+# 4. LEARNING RATE (Passed to client optimizer)
+lr = 0.005 
+# 5. BATCH SIZE (Controls memory/speed)
+batch-size = 64 
+
+[tool.flwr.federations]
+default = "local-simulation"
+
+[tool.flwr.federations.local-simulation]
+# 6. PARALLELISM (CPU/Hardware resource)
+# Sets the number of concurrent client processes.
+options.num-supernodes = 2
+# NEW: Force the local-process backend to avoid Ray/KeyError issues.
+node-manager = "subprocess"
