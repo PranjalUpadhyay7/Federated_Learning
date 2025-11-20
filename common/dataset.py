@@ -5,7 +5,7 @@ import os
 import re
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
-
+from sklearn.preprocessing import StandardScaler
 # --- GLOBAL DATA CONFIGURATION (Source of Truth) ---
 # X dimension (number of features per time step)
 NUM_FEATURES = 26  
@@ -111,7 +111,18 @@ def load_all_centralized(batch_size=64, num_workers=0, is_static=False):
 
     X_combined = np.concatenate(all_X, axis=0)
     y_combined = np.concatenate(all_y, axis=0)
-
+# --- ADD THIS BLOCK ---
+    # Reshape for scaling
+    original_shape = X_combined.shape
+    if X_combined.ndim == 3: # Time Series (N, Seq, Feat)
+        # Flatten, Scale, Reshape back
+        N, S, F = X_combined.shape
+        scaler = StandardScaler()
+        X_combined = scaler.fit_transform(X_combined.reshape(-1, F)).reshape(N, S, F)
+    else: # Static (N, Feat)
+        scaler = StandardScaler()
+        X_combined = scaler.fit_transform(X_combined)
+    # ----------------------
     X_train, X_test, y_train, y_test = train_test_split(X_combined, y_combined, test_size=0.2, random_state=42)
     
     # Using customizable batch_size and num_workers

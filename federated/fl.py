@@ -10,7 +10,8 @@ from flwr.server.strategy import FedAvg
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from centralized.model import TimeSeriesLSTM_Generic, StaticNet_Generic, TabM_Generic
+# Using Generic models that handle both single and multi-task
+from centralized.model import TimeSeriesLSTM, StaticNet, TabM_Single
 from federated.utils import load_partition
 from common.dataset import TARGET_CONFIG, get_files_sorted 
 
@@ -26,10 +27,11 @@ print(f"--- DYNAMIC SETUP ---")
 print(f"Detected {NUM_CLIENTS} unique user files. Setting NUM_CLIENTS to {NUM_CLIENTS}.")
 
 NUM_ROUNDS = 50   
-FRACTION_FIT = 0.8 
-LOCAL_EPOCHS = 1  
+FRACTION_FIT = 1.0
+LOCAL_EPOCHS = 5
 LR = 0.0005       
-BATCH_SIZE = 64   
+BATCH_SIZE = 64
+CHECKPOINT_INTERVAL = 10 # Save every 10 rounds
 
 # --- CLIENT BASE CLASS ---
 class BaseFlowerClient(fl.client.NumPyClient):
@@ -53,7 +55,12 @@ class BaseFlowerClient(fl.client.NumPyClient):
         self.model.to(self.device)
         state_dict = OrderedDict({k: torch.tensor(v) for k, v in zip(self.model.state_dict().keys(), parameters)})
         self.model.load_state_dict(state_dict, strict=True)
-        return torch.nn.CrossEntropyLoss(), torch.optim.Adam(self.model.parameters(), lr=LR)
+        # Define weights (Ensure they are on the correct device: self.device)
+        class_weights = torch.tensor([1.0, 0.36, 0.86, 9.8, 24.0]).to(self.device)
+        
+        # Use Weighted Loss
+        criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+        return criterion, torch.optim.Adam(self.model.parameters(), lr=LR)
 
     def _calculate_loss(self, outputs, y_batch, criterion):
         """Handles both list (multi-head) and tensor (single-head) outputs."""
@@ -77,61 +84,73 @@ class BaseFlowerClient(fl.client.NumPyClient):
                 for X_batch, y_batch in self.train_loader:
                     X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
                     optimizer.zero_grad()
-                    
                     outputs = self.model(X_batch)
                     loss = self._calculate_loss(outputs, y_batch, criterion)
-                    
                     loss.backward()
                     optimizer.step()
-        
         return self.get_parameters(config={}), len(self.train_loader.dataset), {}
 
     def evaluate(self, parameters, config):
         criterion, _ = self._train_evaluate_logic(parameters)
         self.model.eval()
         loss = 0.0
-        
         with torch.no_grad():
             for X_batch, y_batch in self.test_loader:
                 X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
                 outputs = self.model(X_batch)
                 loss += self._calculate_loss(outputs, y_batch, criterion).item()
-        
-        return loss / len(self.test_loader) if len(self.test_loader) > 0 else 0.0, \
-               len(self.test_loader.dataset), \
-               {"accuracy": 0.0}
+        return loss / len(self.test_loader) if len(self.test_loader) > 0 else 0.0, len(self.test_loader.dataset), {"accuracy": 0.0}
 
 # --- CLIENT CLASSES ---
 class TimeSeriesFlowerClient(BaseFlowerClient):
     def __init__(self, partition_id: int):
-        super().__init__(partition_id, TimeSeriesLSTM_Generic, is_static=False)
+        super().__init__(partition_id, TimeSeriesLSTM, is_static=False)
 
 class StaticFlowerClient(BaseFlowerClient):
     def __init__(self, partition_id: int):
-        super().__init__(partition_id, StaticNet_Generic, is_static=True)
+        super().__init__(partition_id, StaticNet, is_static=True)
 
 class TabMFlowerClient(BaseFlowerClient):
     def __init__(self, partition_id: int):
-        super().__init__(partition_id, TabM_Generic, is_static=True)
+        super().__init__(partition_id, TabM_Single, is_static=True)
 
-# --- SAVE STRATEGY ---
+# --- SAVE STRATEGY WITH CHECKPOINTS ---
 class SaveModelStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, model_class, save_path, **kwargs):
+    def __init__(self, model_class, save_path, checkpoint_interval, **kwargs):
         super().__init__(**kwargs)
         self.model_class = model_class
         self.save_path = save_path
+        self.checkpoint_interval = checkpoint_interval
+        # Base name (e.g. "federated_lstm_v2") derived from save_path "saved_models/federated_lstm_v2.pth"
+        self.base_name = os.path.splitext(os.path.basename(save_path))[0] 
 
     def aggregate_fit(self, server_round: int, results, failures):
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
-        if aggregated_parameters is not None and server_round == NUM_ROUNDS:
-            print(f"\nAggregating final model ({self.model_class.__name__}) and saving...")
-            ndarrays = fl.common.parameters_to_ndarrays(aggregated_parameters)
-            net = self.model_class()
-            state_dict = OrderedDict({k: torch.tensor(v) for k, v in zip(net.state_dict().keys(), ndarrays)})
-            net.load_state_dict(state_dict, strict=True)
-            if not os.path.exists("saved_models"): os.makedirs("saved_models")
-            torch.save(net.state_dict(), self.save_path)
-            print(f"Saved global FL model to {self.save_path}")
+        
+        if aggregated_parameters is not None:
+            # Save Checkpoint if interval matches OR if it's the final round
+            if server_round % self.checkpoint_interval == 0 or server_round == NUM_ROUNDS:
+                print(f"\nAggregating model ({self.model_class.__name__}) for Round {server_round}...")
+                
+                ndarrays = fl.common.parameters_to_ndarrays(aggregated_parameters)
+                net = self.model_class()
+                state_dict = OrderedDict({k: torch.tensor(v) for k, v in zip(net.state_dict().keys(), ndarrays)})
+                net.load_state_dict(state_dict, strict=True)
+                
+                # Create main directory and checkpoints directory
+                if not os.path.exists("saved_models"): os.makedirs("saved_models")
+                if not os.path.exists("saved_models/checkpoints"): os.makedirs("saved_models/checkpoints")
+                
+                if server_round == NUM_ROUNDS:
+                    # Final save
+                    filename = self.save_path
+                else:
+                    # Checkpoint save
+                    filename = f"saved_models/checkpoints/{self.base_name}_round_{server_round}.pth"
+                
+                torch.save(net.state_dict(), filename)
+                print(f"Saved global FL model to {filename}")
+
         return aggregated_parameters, aggregated_metrics
 
 # --- RUN FUNCTIONS ---
@@ -144,6 +163,7 @@ def run_simulation_generic(model_class, client_class, save_name):
     strategy = SaveModelStrategy(
         model_class=model_class,
         save_path=f"saved_models/{save_name}.pth",
+        checkpoint_interval=CHECKPOINT_INTERVAL, # Pass config
         fraction_fit=FRACTION_FIT, 
         fraction_evaluate=FRACTION_FIT,
         min_fit_clients=min_clients,
@@ -159,6 +179,7 @@ def run_simulation_generic(model_class, client_class, save_name):
     )
 
 if __name__ == "__main__":
-    run_simulation_generic(TimeSeriesLSTM_Generic, TimeSeriesFlowerClient, "federated_lstm_v2")
-    run_simulation_generic(StaticNet_Generic, StaticFlowerClient, "federated_static_v2")
-    run_simulation_generic(TabM_Generic, TabMFlowerClient, "federated_tabm_v2")
+    # Using Generic classes and v2 filenames
+    run_simulation_generic(TimeSeriesLSTM, TimeSeriesFlowerClient, "federated_lstm_v2")
+    run_simulation_generic(StaticNet, StaticFlowerClient, "federated_static_v2")
+    run_simulation_generic(TabM_Single, TabMFlowerClient, "federated_tabm_v2")

@@ -13,6 +13,7 @@ from common.utils import save_model
 CENTRAL_BATCH_SIZE = 64 
 NUM_WORKERS = 4 
 CENTRAL_EPOCHS = 100
+CHECKPOINT_INTERVAL = 10
 
 def calculate_loss(outputs, y_batch, criterion):
     """Dynamic loss calculation for single or multi-head output."""
@@ -36,11 +37,23 @@ def run_training_loop(model, train_loader, epochs, save_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    # Calculate weights: Total_Samples / (Num_Classes * Class_Count)
+    # Approximate weights based on your report:
+    # Class 0: 1.0
+    # Class 1: 0.36 (Down-weight the majority)
+    # Class 2: 0.86
+    # Class 3: 9.8
+    # Class 4: 24.0 (Up-weight the minority significantly)
+    
+    # Move weights to the same device as the model (GPU)
+    class_weights = torch.tensor([1.0, 0.36, 0.86, 9.8, 24.0]).to(device)
+    
+    # Use Weighted Loss
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
     model.train()
-    
+    base_name = os.path.splitext(save_path)[0]
     print(f"Starting training on {device} with batch size {CENTRAL_BATCH_SIZE}...")
     for epoch in range(epochs):
         total_loss = 0
@@ -48,8 +61,9 @@ def run_training_loop(model, train_loader, epochs, save_path):
         total_predictions = 0
         
         for X_batch, y_batch in train_loader:
+            print(y_batch)
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-            
+            # break
             optimizer.zero_grad()
             outputs = model(X_batch)
             
@@ -73,6 +87,12 @@ def run_training_loop(model, train_loader, epochs, save_path):
         avg_acc = total_correct / total_predictions if total_predictions > 0 else 0.0
         
         print(f"Epoch {epoch+1}/{epochs} | Loss: {avg_loss:.4f} | Main Task Acc: {avg_acc:.2%}")
+        # --- CHECKPOINT SAVING ---
+        if epoch % CHECKPOINT_INTERVAL == 0:
+            checkpoint_path = f"{base_name}/epoch_{epoch}.pth"
+            save_model(model.cpu(), checkpoint_path)
+            model.to(device) # Move back to GPU after saving
+            print(f"   >> Checkpoint saved: {checkpoint_path}")
 
     save_model(model.cpu(), save_path)
 
@@ -98,6 +118,6 @@ def train_tabm_centralized():
     run_training_loop(model, train_loader, epochs=CENTRAL_EPOCHS, save_path="saved_models/centralized_tabm_v2.pth")
 
 if __name__ == "__main__":
-    # train_lstm_centralized()
-    # train_static_centralized()
+    train_lstm_centralized()
+    train_static_centralized()
     train_tabm_centralized()

@@ -6,14 +6,15 @@ from sklearn.metrics import classification_report
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from centralized.model import TimeSeriesLSTM_Single, StaticNet_Single, TabM_Single
+from centralized.model import TimeSeriesLSTM, StaticNet, TabM_Single
 from common.utils import load_model_weights
 from common.dataset import load_all_centralized, TARGET_CONFIG
 
 def evaluate_on_test_set(model, test_loader):
     model.eval()
-    all_preds = []
-    all_truths = []
+    # Lists to hold predictions for each task
+    all_preds = [[] for _ in range(len(TARGET_CONFIG))]
+    all_truths = [[] for _ in range(len(TARGET_CONFIG))]
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -21,21 +22,31 @@ def evaluate_on_test_set(model, test_loader):
     with torch.no_grad():
         for X_batch, y_batch in test_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-            y_batch = y_batch.squeeze()
             
-            # Single output tensor
             outputs = model(X_batch)
             
-            preds = torch.argmax(outputs, dim=1).cpu().numpy()
-            truths = y_batch.cpu().numpy()
-            
-            all_preds.extend(preds)
-            all_truths.extend(truths)
+            # Normalize outputs to be a list for consistent processing
+            if not isinstance(outputs, list):
+                outputs = [outputs]
+                
+            # Process each task
+            for i, out in enumerate(outputs):
+                preds = torch.argmax(out, dim=1).cpu().numpy()
+                
+                # Handle single vs multi-target y_batch
+                if y_batch.dim() > 1 and y_batch.shape[1] > 1:
+                    truths = y_batch[:, i].cpu().numpy()
+                else:
+                    # Single task or squeezed target
+                    truths = y_batch.squeeze().cpu().numpy()
+
+                all_preds[i].extend(preds)
+                all_truths[i].extend(truths)
                 
     return all_preds, all_truths
 
 def main():
-    print(f"=== Model Comparison Evaluation (5 Classes) ===")
+    print(f"=== Model Comparison Evaluation (Config: {TARGET_CONFIG}) ===")
     
     # 1. Load Data
     _, lstm_test_loader = load_all_centralized(is_static=False)
@@ -46,10 +57,10 @@ def main():
     
     # 2. Initialize Models
     models = {
-        "LSTM_Central": TimeSeriesLSTM_Single(),
-        "LSTM_Federated": TimeSeriesLSTM_Single(),
-        "StaticNet_Central": StaticNet_Single(),
-        "StaticNet_Federated": StaticNet_Single(),
+        "LSTM_Central": TimeSeriesLSTM(),
+        "LSTM_Federated": TimeSeriesLSTM(),
+        "StaticNet_Central": StaticNet(),
+        "StaticNet_Federated": StaticNet(),
         "TabM_Central": TabM_Single(),
         "TabM_Federated": TabM_Single(),
     }
@@ -87,13 +98,15 @@ def main():
     print("CLASSIFICATION REPORT COMPARISON")
     print("="*80)
     
-    target_names = [f'Class {c}' for c in range(TARGET_CONFIG[0])]
-    
-    for name in loaded_models:
-        print(f"\n[{name.upper()} REPORT]")
-        print(classification_report(truths_map[name], results[name], 
-                                    zero_division=0, 
-                                    target_names=target_names))
+    for i, num_classes in enumerate(TARGET_CONFIG):
+        print(f"\n--- Task {i} (Classes: 0 to {num_classes-1}) ---")
+        target_names = [f'Class {c}' for c in range(num_classes)]
+        
+        for name in loaded_models:
+            print(f"\n[{name.upper()} REPORT]")
+            print(classification_report(truths_map[name][i], results[name][i], 
+                                        zero_division=0, 
+                                        target_names=target_names))
 
 if __name__ == "__main__":
     main()

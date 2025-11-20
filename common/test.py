@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 # Configuration matching your dataset.py
-DATA_DIR = "real_data"
-NUM_FEATURES = 30
+DATA_DIR = "real_data_v2"
+NUM_FEATURES = 26
 TARGET_CONFIG = [5] 
 NUM_TARGETS = len(TARGET_CONFIG)
 
@@ -42,15 +42,21 @@ def check_data_labels():
     print("\n--- DATA REPORT ---")
     for i in range(NUM_TARGETS):
         col_targets = all_targets[:, i]
-        unique_vals = np.unique(col_targets)
+        
+        # Get unique values and their counts
+        unique_vals, counts = np.unique(col_targets, return_counts=True)
+        
         min_val = np.min(unique_vals)
         max_val = np.max(unique_vals)
         
         print(f"Task {i}:")
         print(f"  Expected Classes: 0 to {TARGET_CONFIG[i] - 1}")
-        print(f"  Actual Unique Values Found: {unique_vals}")
-        print(f"  Range: [{min_val}, {max_val}]")
+        print(f"  Range Found: [{min_val}, {max_val}]")
         
+        print("  Class Distribution:")
+        for val, count in zip(unique_vals, counts):
+            print(f"    Class {val}: {count} instances")
+            
         if min_val < 0 or max_val >= TARGET_CONFIG[i]:
             print(f"  >>> CRITICAL ISSUE: Values outside [0, {TARGET_CONFIG[i]-1}] range!")
             if min_val == 1:
