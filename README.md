@@ -63,7 +63,38 @@ graph TD
     %% Using a generic ID for the subgraph to apply styles safely
 ```
 
-*(You can place images from the report here: `![Data Collection Protocol](path/to/cropped_image_1.png)`)*
+### Module Codebase Dependency Graph
+```mermaid
+graph LR
+    classDef common fill:#FFF2CC,stroke:#ED8936,stroke-width:2px,color:#2D3748;
+    classDef model fill:#EBF8FF,stroke:#4299E1,stroke-width:2px,color:#2D3748;
+    classDef main fill:#E6FFFA,stroke:#38B2AC,stroke-width:2px,color:#2D3748;
+    classDef fl fill:#C3DAFE,stroke:#3182CE,stroke-width:2px,color:#2D3748;
+    
+    C[("common/<br>data_preprocessing/dataset.py")]:::common
+    M[("centralized/<br>model.py")]:::model
+    
+    TC["centralized/<br>train_central.py"]:::main
+    
+    FL["federated/<br>fl.py"]:::fl
+    FLS["federated/<br>server.py"]:::fl
+    FLC["federated/<br>client.py"]:::fl
+    
+    MAIN{"main.py<br>(Evaluator)"}:::main
+    
+    C --> TC
+    M --> TC
+    
+    C --> FL
+    M --> FL
+    
+    TC --> MAIN
+    FL --> MAIN
+    
+    FL --> FLS
+    FLS --> FLC
+```
+
 
 ---
 
