@@ -49,15 +49,15 @@ graph TD
     end
 
     %% Communication Flow
-    M1 -. "1. Gradients ∆w" .-> S
-    M2 -. "1. Gradients ∆w" .-> S
-    MN -. "1. Gradients ∆w" .-> S
+    M1 -. "1. Gradients" .-> S
+    M2 -. "1. Gradients" .-> S
+    MN -. "1. Gradients" .-> S
 
-    S === "2. FedAvg()" === S
+    S -- "2. FedAvg Aggregation" --> S
 
-    S ==>|"3. Global Weights w' "| M1
-    S ==>|"3. Global Weights w' "| M2
-    S ==>|"3. Global Weights w' "| MN
+    S == "3. Global Weights" ==> M1
+    S == "3. Global Weights" ==> M2
+    S == "3. Global Weights" ==> MN
 
     class C1,C2,CN edge;
     style "🔐 Edge Environment (Privacy Maintained)" fill:#F7FAFC,stroke:#CBD5E0,stroke-width:2px,stroke-dasharray: 5, 5;
