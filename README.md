@@ -60,7 +60,7 @@ graph TD
     S == "3. Global Weights" ==> MN
 
     class C1,C2,CN edge;
-    style "🔐 Edge Environment (Privacy Maintained)" fill:#F7FAFC,stroke:#CBD5E0,stroke-width:2px,stroke-dasharray: 5, 5;
+    %% Using a generic ID for the subgraph to apply styles safely
 ```
 
 *(You can place images from the report here: `![Data Collection Protocol](path/to/cropped_image_1.png)`)*
