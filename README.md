@@ -90,6 +90,20 @@ The solution incorporates distinct architectures tailored for dynamic tabular/ti
 - **`StaticNet` (MLP)**: Processes single-frame localized inputs and static questionnaires (e.g., Demographics, Jungian scale).
 - **`TabM_Single` (Tabular Foundation)**: Optimized specifically for categorical and mixed tabular behavioral records across participants.
 
+### Model Performance (Mood Classification Accuracy)
+| Model | Accuracy | Verdict |
+|-------|----------|---------|
+| **TabM (Tabular Ensemble)** | **69.95%** | **Best Performer** |
+| **LSTM (Sequential)** | 68.28% | Competitive |
+| **StaticNet (Deep MLP)** | 56.11% | Baseline |
+
+### Model Stability & Convergence (Loss Metrics)
+| Model | Loss (Lower is Better) | Analysis |
+|-------|------------------------|----------|
+| **TabM** | **1.5** | **Most Robust** |
+| **LSTM** | 1.9 | Moderate Stability |
+| **StaticNet**| 2.2 | Poor Convergence |
+
 ---
 
 ## ⚙️ Installation & Setup
