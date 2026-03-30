@@ -1,6 +1,7 @@
 # Federated Learning for Mental Wellbeing Prediction 🧠📱
 
-> **A privacy-preserving Federated Learning (FL) system leveraging cross-cultural multimodal smartphone sensor data to predict human mood and wellbeing while explicitly addressing real-world challenges like domain shift, cold-starts, and non-IID client distributions.**
+> **How can we predict human mental wellbeing without invading users' privacy?**
+> This project builds a privacy-first machine learning system that tracks mood and behavioral shifts directly on a mobile phone without sending personal data to the cloud.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-Deep%20Learning-EE4C2C)
@@ -19,7 +20,10 @@
 
 ## 🏗 Architecture & Flow
 
-The system runs a **Zero-Trust Federated Learning** architecture. All sensitive behavioral metrics remain strictly on the user's edge device. Only decentralized, mathematically encrypted gradient updates are communicated over the network to the federated server for aggregation via `FedAvg`.
+Instead of pooling sensitive smartphone and survey data into a centralized database, we use **Federated Learning**. 
+1. **Local Training:** The AI model lives on the user's phone, continuously learning from their specific daily behavior.
+2. **Privacy Preserved:** Their steps, screen time, location data, and mental health metrics NEVER leave their device.
+3. **Global Collaboration:** The single thing the phone shares with the central server is a numerical "understanding" (a weight update). The server averages all these anonymous updates together to build a robust, global master model.
 
 ```mermaid
 graph TD
@@ -115,8 +119,6 @@ We use the **DiversityOne** dataset collected via the `iLog` app.
   - **Static Profiles:** Demographics, Big Five Inventory personality traits.
 - **Benefit:** Highly resistant to geographic model bias.
 
-*(You can place the sensor table image from the report here: `![Sensors Table](path/to/cropped_image_2.png)`)*
-
 ---
 
 ## 🧠 Deep Learning Models
@@ -193,5 +195,3 @@ This generates an end-to-end `classification_report` testing how well the global
 - **Privacy vs Performance:** FL achieves parity against heavily centralized oracles when handling mild Non-IID distributions but highlights significant **client drift** when training strictly on heavily skewed individual user states.
 - **Cross-Cultural Shift:** Generalization from Global South (Jilin, China) to Global North (London/Copenhagen) demonstrates how Federated Learning inherently handles generalized cross-demographic variances better over prolonged multi-round server updates. 
 - **Cold-Start Validation:** Integrating "Cascading FL" simulates new user app installations perfectly, preventing system halts on minimal initial data drops.
-
-*(You can place conclusion graphs from the report here: `![Evaluation Graphs](path/to/cropped_image_3.png)`)*
