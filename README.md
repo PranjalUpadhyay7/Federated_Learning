@@ -23,40 +23,44 @@ The system runs a **Zero-Trust Federated Learning** architecture. All sensitive 
 
 ```mermaid
 graph TD
-    classDef edge fill:#2b2b2b,stroke:#00ffcc,stroke-width:2px,color:#fff;
-    classDef cloud fill:#1e1e3f,stroke:#ff007f,stroke-width:2px,color:#fff;
-    classDef model fill:#0055ff,stroke:#fff,stroke-width:1px,color:#fff;
-    classDef data fill:#00aa55,stroke:#fff,stroke-width:1px,color:#fff;
+    %% Styling variables
+    classDef edge fill:#1A202C,stroke:#38B2AC,stroke-width:3px,color:#E2E8F0;
+    classDef cloud fill:#2D3748,stroke:#ED64A6,stroke-width:3px,color:#F7FAFC,shape:hexagon;
+    classDef model fill:#3182CE,stroke:#E2E8F0,stroke-width:2px,color:#FFFFFF,rx:5,ry:5;
+    classDef data fill:#48BB78,stroke:#E2E8F0,stroke-width:2px,color:#FFFFFF,shape:cylinder;
+    classDef mainBg fill:#edf2f7,stroke:#A0AEC0,stroke-width:2px;
 
-    subgraph "Edge Devices (Clients - Local Privacy Maintained)" 
-        direction TB
-        subgraph Client_1 [Client Node 1: e.g. Jilin, China]
-            D1[(Sensor Data + Surveys)]:::data --> M1(Local Model Training):::model
+    S{{"☁️ Federated Aggregator Layer<br>(Server)"}}:::cloud
+
+    subgraph "🔐 Edge Environment (Privacy Maintained)"
+        direction LR
+        
+        subgraph C1 ["📍 Client 1 (China)"]
+            D1[("Sensor Data")]:::data --> M1["Local Training"]:::model
         end
-        subgraph Client_2 [Client Node 2: e.g. London, UK]
-            D2[(Sensor Data + Surveys)]:::data --> M2(Local Model Training):::model
+        
+        subgraph C2 ["📍 Client 2 (UK)"]
+            D2[("Sensor Data")]:::data --> M2["Local Training"]:::model
         end
-        subgraph Client_N [Client Node N: e.g. Copenhagen, Denmark]
-            DN[(Sensor Data + Surveys)]:::data --> MN(Local Model Training):::model
+        
+        subgraph CN ["📍 Client N (Denmark)"]
+            DN[("Sensor Data")]:::data --> MN["Local Training"]:::model
         end
     end
 
-    subgraph "Federated Cloud (Aggregation Layer)"
-        S((FL Server Aggregator)):::cloud
-    end
+    %% Communication Flow
+    M1 -. "1. Gradients ∆w" .-> S
+    M2 -. "1. Gradients ∆w" .-> S
+    MN -. "1. Gradients ∆w" .-> S
 
-    %% Training loops
-    M1 == "1. Sends Encrypted Gradients" ==> S
-    M2 == "1. Sends Encrypted Gradients" ==> S
-    MN == "1. Sends Encrypted Gradients" ==> S
+    S === "2. FedAvg()" === S
 
-    S -. "2. Aggregates via FedAvg" .-> S
+    S ==>|"3. Global Weights w' "| M1
+    S ==>|"3. Global Weights w' "| M2
+    S ==>|"3. Global Weights w' "| MN
 
-    S == "3. Broadcasts Updated Global Weights" ==> M1
-    S == "3. Broadcasts Updated Global Weights" ==> M2
-    S == "3. Broadcasts Updated Global Weights" ==> MN
-
-    class Client_1,Client_2,Client_N edge;
+    class C1,C2,CN edge;
+    style "🔐 Edge Environment (Privacy Maintained)" fill:#F7FAFC,stroke:#CBD5E0,stroke-width:2px,stroke-dasharray: 5, 5;
 ```
 
 *(You can place images from the report here: `![Data Collection Protocol](path/to/cropped_image_1.png)`)*
